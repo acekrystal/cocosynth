@@ -390,9 +390,54 @@ class ImageComposition():
 
         # ** Apply Transformations **
         # Rotate the foreground
-        angle_degrees = random.randint(0, 359)
+        #angle_degrees = random.randint(0, 359)
+        angle_degrees = np.random.normal(0, 15)
         fg_image = fg_image.rotate(angle_degrees, resample=Image.BICUBIC, expand=True)
 
+        # Projective transformation (affine)
+
+
+        import cv2
+        #cv_image = np.array(fg_image)
+        cv_image= np.array(fg_image)
+        cv_image = cv_image[:, :, ::-1].copy()
+        print(type(fg_image))
+        print(type(cv_image))
+        #cv_image = np.array(cv2.cvtColor(fg_image, cv2.COLOR_BGR2RGB))
+        num_rows, num_cols = cv_image.shape[:2]
+        src_points = np.float32([[0,0], [num_cols-1,0], [0,num_rows-1], [num_cols-1,num_rows-1]])
+        dst_points = np.float32([[0,0], [num_cols-1,0], [int(0.33*num_cols),num_rows-1], [int(0.66*num_cols),num_rows-1]])
+        projective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
+        img_protran = cv2.warpPerspective(cv_image, projective_matrix, (num_cols,num_rows))
+        #fg_image = cv2.cvtColor(np.array(img_protran), cv2.COLOR_RGB2BGR)
+        fg_image = Image.fromarray(img_protran.astype('uint8'), 'RGB')
+        print(type(img_protran))
+        print(type(fg_image))
+        '''import math
+        #import numpy as np
+        import matplotlib.pyplot as plt
+
+        from skimage import data
+        from skimage import transform
+        from skimage import img_as_float
+        from skimage.transform import warp
+        
+        PIL_image = Image.fromarray(np.uint8(numpy_image)).convert('RGB')
+
+
+        matrix = np.array([[1, -0.5, 100],
+                   [0.1, 0.9, 50],
+                   [0.0015, 0.0015, 1]])
+        warped = warp(fg_image, matrix)
+        from skimage.transform import ProjectiveTransform
+        fg_image = warp(fg_image, ProjectiveTransform(matrix=matrix))
+
+        #tform = transform.ProjectiveTransform(matrix=matrix)
+        #ptf_image = transform.warp(fg_image, tform.inverse)
+        #tf_image = Image.fromarray(np.uint8(cm.gist_earth(ptf_image)*255))
+        #fig, ax = plt.subplots()
+        '''
+        
         # Scale the foreground
         scale = random.random() * .5 + .5 # Pick something between .5 and 1
         new_size = (int(fg_image.size[0] * scale), int(fg_image.size[1] * scale))
