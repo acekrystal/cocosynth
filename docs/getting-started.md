@@ -42,6 +42,22 @@ For this guide, all examples assume you'll be using the box_dataset_synthetic sa
 - Inside each category folder, add all foreground photos you intend to use for the respective category (e.g. all of you eagle foreground cutouts)
 - Inside "backgrounds", add all background photos you intend to use
 
+Example folder tree :
+```
+├───input
+│   ├───backgrounds
+│   └───foregrounds
+│       └───person
+│           ├───laying_person
+│           ├───sitting_person
+│           └───standing_person
+├───output
+│   ├───images
+│   └───masks
+├───test
+├───train
+└───val
+```
 Run "image_composition.py" to create your images and masks
 ```
 python ./python/image_composition.py --input_dir ./datasets/box_dataset_synthetic/input --output_dir ./datasets/box_dataset_synthetic/output --count 10 --width 512 --height 512

@@ -6,6 +6,8 @@ import random
 import numpy as np
 from datetime import datetime
 from pathlib import Path
+
+from PIL.Image import Resampling
 from tqdm import tqdm
 from PIL import Image, ImageEnhance
 
@@ -332,6 +334,21 @@ class ImageComposition():
 
         # Crop background to desired size (self.width x self.height), randomly positioned
         bg_width, bg_height = background.size
+        if bg_width < self.width or bg_height < self.width:
+            print("\nBackground image size:", bg_width, "x", bg_height, "is smaller then requested output size:", self.width, "x", self.height, "for image", str(background_path) )
+            print("Upscaling the image!")
+            if bg_width < bg_height :
+                new_width = int((self.width / bg_width) * bg_width)
+                new_height = int((self.height / bg_width) * bg_height)
+            else:
+                new_height = int((self.height / bg_height) *bg_height)
+                new_width = int((self.width / bg_height) * bg_width)
+
+            upScaleSize = new_width, new_height
+            background = background.resize(upScaleSize, resample=Resampling.BICUBIC)
+            bg_width, bg_height = background.size
+            print("upscaled size is now bg_width:", bg_width, "bg_height:", bg_height )
+
         max_crop_x_pos = bg_width - self.width
         max_crop_y_pos = bg_height - self.height
         assert max_crop_x_pos >= 0, f'desired width, {self.width}, is greater than background width, {bg_width}, for {str(background_path)}'
@@ -347,12 +364,33 @@ class ImageComposition():
             # Perform transformations
             fg_image = self._transform_foreground(fg, fg_path)
 
+            # Resize foreground image if to big
+            fg_width, fg_height = fg_image.size
+            if fg_width > self.width or fg_height > self.width:
+                print("foreground image size:", fg_width, "x", fg_height, "is bigger then requested output size:",
+                      self.width, "x", self.height, "for image", str(fg_path))
+                print("DownScaling the image!")
+                if fg_width > fg_height:
+                    new_width = int((self.width / fg_width) * fg_width)
+                    new_height = int((self.height / fg_width) * fg_height)
+                else:
+                    new_height = int((self.height / fg_height) * fg_height)
+                    new_width = int((self.width / fg_height) * fg_width)
+
+                DownScaleSize = new_width, new_height
+                fg_image = fg_image.resize(DownScaleSize, resample=Resampling.BICUBIC)
+                fg_width, fg_height = fg_image.size
+                print("DownScaled size is now fg_width:", fg_width, "fg_height:", fg_height)
+
             # Choose a random x,y position for the foreground
-            max_x_position = composite.size[0] - fg_image.size[0]
-            max_y_position = composite.size[1] - fg_image.size[1]
+            shifting = 0.2 # Allowed out of frame shifting, to help move objects more to the sides of images instead if staying in the middle.
+            min_x_position = 0 - int(fg_image.size[0] * shifting) #- int(fg_image.size[0])
+            min_y_position = 0 - int(fg_image.size[1] * shifting) #- int(fg_image.size[1])
+            max_x_position = (composite.size[0] * (1 + shifting)) - int(fg_image.size[0])
+            max_y_position = (composite.size[0] * (1 + shifting)) - int(fg_image.size[1])
             assert max_x_position >= 0 and max_y_position >= 0, \
             f'foreground {fg_path} is too big ({fg_image.size[0]}x{fg_image.size[1]}) for the requested output size ({self.width}x{self.height}), check your input parameters'
-            paste_position = (random.randint(0, max_x_position), random.randint(0, max_y_position))
+            paste_position = (random.randint(min_x_position, max_x_position), random.randint(min_y_position, max_y_position))
 
             # Create a new foreground image as large as the composite and paste it on top
             new_fg_image = Image.new('RGBA', composite.size, color = (0, 0, 0, 0))
@@ -392,56 +430,12 @@ class ImageComposition():
         # Rotate the foreground
         #angle_degrees = random.randint(0, 359)
         angle_degrees = np.random.normal(0, 15)
-        fg_image = fg_image.rotate(angle_degrees, resample=Image.BICUBIC, expand=True)
+        fg_image = fg_image.rotate(angle_degrees, resample=Resampling.BICUBIC, expand=True)
 
-        # Projective transformation (affine)
-
-
-        import cv2
-        #cv_image = np.array(fg_image)
-        cv_image= np.array(fg_image)
-        cv_image = cv_image[:, :, ::-1].copy()
-        print(type(fg_image))
-        print(type(cv_image))
-        #cv_image = np.array(cv2.cvtColor(fg_image, cv2.COLOR_BGR2RGB))
-        num_rows, num_cols = cv_image.shape[:2]
-        src_points = np.float32([[0,0], [num_cols-1,0], [0,num_rows-1], [num_cols-1,num_rows-1]])
-        dst_points = np.float32([[0,0], [num_cols-1,0], [int(0.33*num_cols),num_rows-1], [int(0.66*num_cols),num_rows-1]])
-        projective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-        img_protran = cv2.warpPerspective(cv_image, projective_matrix, (num_cols,num_rows))
-        #fg_image = cv2.cvtColor(np.array(img_protran), cv2.COLOR_RGB2BGR)
-        fg_image = Image.fromarray(img_protran.astype('uint8'), 'RGB')
-        print(type(img_protran))
-        print(type(fg_image))
-        '''import math
-        #import numpy as np
-        import matplotlib.pyplot as plt
-
-        from skimage import data
-        from skimage import transform
-        from skimage import img_as_float
-        from skimage.transform import warp
-        
-        PIL_image = Image.fromarray(np.uint8(numpy_image)).convert('RGB')
-
-
-        matrix = np.array([[1, -0.5, 100],
-                   [0.1, 0.9, 50],
-                   [0.0015, 0.0015, 1]])
-        warped = warp(fg_image, matrix)
-        from skimage.transform import ProjectiveTransform
-        fg_image = warp(fg_image, ProjectiveTransform(matrix=matrix))
-
-        #tform = transform.ProjectiveTransform(matrix=matrix)
-        #ptf_image = transform.warp(fg_image, tform.inverse)
-        #tf_image = Image.fromarray(np.uint8(cm.gist_earth(ptf_image)*255))
-        #fig, ax = plt.subplots()
-        '''
-        
         # Scale the foreground
-        scale = random.random() * .5 + .5 # Pick something between .5 and 1
+        scale = random.random() * .3 + .5 # Pick something between .3 and 1
         new_size = (int(fg_image.size[0] * scale), int(fg_image.size[1] * scale))
-        fg_image = fg_image.resize(new_size, resample=Image.BICUBIC)
+        fg_image = fg_image.resize(new_size, resample=Resampling.BICUBIC)
 
         # Adjust foreground brightness
         brightness_factor = random.random() * .4 + .7 # Pick something between .7 and 1.1
