@@ -1,0 +1,2 @@
+
+Background image size: 640x535 is smaller then expected scaled to size: 550x550 for image D:\SOS5\Synthetic-DataSet-Workspace\SOS5POCset2\input\backgrounds\000000315864.jpg

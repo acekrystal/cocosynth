@@ -340,9 +340,29 @@ class ImageComposition():
             if bg_width < bg_height :
                 new_width = int((self.width / bg_width) * bg_width)
                 new_height = int((self.height / bg_width) * bg_height)
+                if new_width < self.width :
+                    print("!!! Upscaling resulted in rounded down, set by force, losing aspect ratio! See RoundingIssues.txt for all files.")
+                    textfile = open('./RoundingIssues.txt', 'a')
+                    textfile.write("\nBackground image new-scaled-size: " + str(new_width) + "x" + str(
+                        new_height) + " is smaller then expected scaled to size: " + str(self.width) + "x" + str(
+                        self.height) + " for image " + str(background_path))
+                    #textfile.write(txtline)
+                    textfile.close()
+                    new_width = self.width
+
+
             else:
-                new_height = int((self.height / bg_height) *bg_height)
+                new_height = int((self.height / bg_height) * bg_height)
                 new_width = int((self.width / bg_height) * bg_width)
+                if new_height < self.height :
+                    print("!!! Upscaling resulted in rounded down, set by force, losing aspect ratio! See RoundingIssues.txt for all files.")
+                    textfile = open('./RoundingIssues.txt', 'a')
+                    textfile.write("\nBackground image new-scaled-size: " + str(new_width) + "x" + str(
+                        new_height) + " is smaller then expected scaled to size: " + str(self.width) + "x" + str(
+                        self.height) + " for image " + str(background_path))
+                    #textfile.write(txtline)
+                    textfile.close()
+                    new_height = self.height
 
             upScaleSize = new_width, new_height
             background = background.resize(upScaleSize, resample=Resampling.BICUBIC)
